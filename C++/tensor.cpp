@@ -1,39 +1,5 @@
 
-#include <iostream>
-#include <vector>
-#include <variant>
-#include <cstdint>
-#include <numeric>
-#include <sstream>
-#include <memory>
-#include <limits>
-#include <iomanip>
-#include <functional>
-
-
-const int DECIMALS = 4;
-const int VALUES_PER_LINE = 8; 
-
-// Define aliases for types
-using uint8 = uint8_t;
-using int32 = int32_t;
-using float32 = float;
-
-// Enum class for data types
-enum class DataType {
-    UINT8,
-    INT32,
-    FLOAT32,
-};
-
-// Variant for TensorValue
-using TensorValue = std::variant<uint8, int32, float32>;
-
-using TensorData = std::variant<
-    std::shared_ptr<uint8[]>,
-    std::shared_ptr<int32[]>,
-    std::shared_ptr<float32[]>
->;
+#include "tensor.hpp"
 
 // Get the size of the data type
 size_t get_dtype_size(const DataType dtype) {
@@ -84,366 +50,353 @@ TensorValue cast_value(double value, const DataType dtype) {
     return tvalue;
 }
 
-class Tensor;
-template <typename T>
-std::string tensor_to_string(const Tensor& tensor, int padding);
-template <typename T>
-std::string array_to_string(const T* array, size_t length, int padding);
+// Default constructor
+Tensor::Tensor() {}
 
-class Tensor {
-public:
+Tensor::Tensor(const TensorData& data,
+       const size_t numel,
+       const std::vector<int>& shape,
+       const DataType& dtype) 
+    : data(data), numel(numel), shape(shape), ndim(static_cast<int>(shape.size())), dtype(dtype), strides(calc_strides()) {
+
+    size_t numel_check = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<int>());
+    if (numel != numel_check) {
+        throw std::runtime_error("numel does not match the product of shape elements.");
+    }
+}
+
+/**
+ * @brief Retrieves the raw pointer from a `std::shared_ptr` that holds an array of type `T`.
+ * 
+ * This function extracts the `std::shared_ptr<T[]>` from a `std::variant` named `data` and 
+ * returns the underlying raw pointer (`T*`). The function assumes that the `data` member 
+ * is a `std::variant` which contains a `std::shared_ptr<T[]>`.
+ *
+ * @tparam T The type of the array elements stored in the `std::shared_ptr`.
+ * @return T* A raw pointer to the underlying array of type `T`. 
+ *         If the `shared_ptr` is empty, it returns `nullptr`.
+ *
+ * @throws std::bad_variant_access If the `data` variant does not hold a `std::shared_ptr<T[]>`.
+ */
+template<typename T>
+T* Tensor::get_data() const {
+    return std::get<std::shared_ptr<T[]>>(data).get();
+}
+
+std::vector<int> Tensor::calc_strides() const {
+    std::vector<int> strides(this->shape.size());
+    size_t data_dtype_size = get_dtype_size(this->dtype);
+    size_t numel = 1;
+    int i = static_cast<int>(this->shape.size()-1);
+    for (i; i >= 0; i--) {
+        strides[i] = static_cast<int>(numel * data_dtype_size);
+        numel *= this->shape[i];
+    }
+    return strides;
+}
+
+Tensor Tensor::empty(const std::vector<int>& shape, const DataType& dtype) {
+    int numel = 1;
+    for (int nelem: shape) {
+        numel *= nelem;
+    }
+
     TensorData data;
-    size_t numel;
-    std::vector<int> shape;
-    int ndim;
-    DataType dtype;
-    std::vector<int> strides;
+    switch(dtype) {
+        case DataType::UINT8:
+            data = std::shared_ptr<uint8[]>(new uint8[numel]);
+            break;
+        case DataType::INT32:
+            data = std::shared_ptr<int32[]>(new int32[numel]);
+            break;
+        case DataType::FLOAT32:
+            data = std::shared_ptr<float32[]>(new float32[numel]);
+            break;
+        default:
+            throw std::invalid_argument("Unsupported data type.");
+    }
 
-    Tensor(const TensorData& data,
-           const size_t numel,
-           const std::vector<int>& shape,
-           const DataType& dtype) 
-        : data(data), numel(numel), shape(shape), ndim(shape.size()), dtype(dtype), strides(calc_strides()) {
+    Tensor tensor = Tensor(data, numel, shape, dtype);
+    return tensor;
+}
 
-        int numel_check = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<size_t>());
-        if (numel != numel_check) {
-            throw std::runtime_error("numel does not match the product of shape elements.");
+Tensor Tensor::fill(const std::vector<int>& shape, const DataType& dtype, double value) {
+    Tensor tensor = Tensor::empty(shape, dtype);
+    TensorValue cvalue = cast_value(value, dtype);
+
+    switch (dtype) {
+        case DataType::UINT8: {
+            uint8* ptr_ui8 = tensor.get_data<uint8>();
+            uint8 val_ui8 = std::get<uint8>(cvalue);
+            for (int i = 0; i < tensor.numel; i++) {
+                ptr_ui8[i] = val_ui8;
+            }
+            break;
         }
-    }
-
-    /**
-     * @brief Retrieves the raw pointer from a `std::shared_ptr` that holds an array of type `T`.
-     * 
-     * This function extracts the `std::shared_ptr<T[]>` from a `std::variant` named `data` and 
-     * returns the underlying raw pointer (`T*`). The function assumes that the `data` member 
-     * is a `std::variant` which contains a `std::shared_ptr<T[]>`.
-     *
-     * @tparam T The type of the array elements stored in the `std::shared_ptr`.
-     * @return T* A raw pointer to the underlying array of type `T`. 
-     *         If the `shared_ptr` is empty, it returns `nullptr`.
-     *
-     * @throws std::bad_variant_access If the `data` variant does not hold a `std::shared_ptr<T[]>`.
-     */
-    template<typename T>
-    T* get_data() const {
-        return std::get<std::shared_ptr<T[]>>(data).get();
-    }
-
-    std::vector<int> calc_strides() const {
-        std::vector<int> strides(shape.size());
-        size_t data_dtype_size = get_dtype_size(dtype);
-        int numel = 1;
-        for (int i=shape.size()-1; i >= 0; i--) {
-            strides[i] = numel * data_dtype_size;
-            numel *= shape[i];
+        case DataType::INT32: {
+            int32* ptr_i32 = tensor.get_data<int32>();
+            int32 val_i32 = std::get<int32>(cvalue);
+            for (int i = 0; i < tensor.numel; i++) {
+                ptr_i32[i] = val_i32;
+            }
+            break;
         }
-        return strides;
+        case DataType::FLOAT32: {
+            float32* ptr_f32 = tensor.get_data<float32>();
+            float32 val_f32 = std::get<float32>(cvalue);
+            for (int i = 0; i < tensor.numel; i++) {
+                ptr_f32[i] = val_f32;
+            }
+            break;
+        }
+        default:
+            throw std::invalid_argument("Unsupported data type.");
     }
+    return tensor;
+}
+
+Tensor Tensor::ones(const std::vector<int>& shape, const DataType& dtype) {
+    return fill(shape, dtype, 1.0);
+}
+
+Tensor Tensor::zeros(const std::vector<int>& shape, const DataType& dtype) {
+    return fill(shape, dtype, 0.0);
+}
+
+template<typename T>
+Tensor Tensor::element_wise_operation(const Tensor& t2, std::function<T(T, T)> op) const {
+    if (this->dtype != t2.dtype) {
+        throw std::invalid_argument("Datatypes must match.");
+    }
+
+    Tensor out = Tensor::empty(this->shape, this->dtype);
+    T* t1_data = this->get_data<T>();
+    T* t2_data = t2.get_data<T>();
+    T* out_data = out.get_data<T>();
+    for (int i=0; i < this->numel; i++) {
+        out_data[i] = op(t1_data[i], t2_data[i]);
+    }
+    return out;
+}
+
+template<typename T>
+Tensor Tensor::element_wise_operation_scalar(const double value, std::function<T(T, T)> op) const {
+    Tensor out = Tensor::empty(this->shape, this->dtype);
     
-    static Tensor empty(const std::vector<int>& shape, const DataType& dtype) {
-        int numel = 1;
-        for (int nelem: shape) {
-            numel *= nelem;
-        }
+    TensorValue cvalue = cast_value(value, this->dtype);
+    const T val = std::get<T>(cvalue);
 
-        TensorData data;
-        switch(dtype) {
-            case DataType::UINT8:
-                data = std::shared_ptr<uint8[]>(new uint8[numel]);
-                break;
-            case DataType::INT32:
-                data = std::shared_ptr<int32[]>(new int32[numel]);
-                break;
-            case DataType::FLOAT32:
-                data = std::shared_ptr<float32[]>(new float32[numel]);
-                break;
-            default:
-                throw std::invalid_argument("Unsupported data type.");
-        }
+    T* t1_data = this->get_data<T>();
+    T* out_data = out.get_data<T>();
+    for (int i=0; i < this->numel; i++) {
+        out_data[i] = op(t1_data[i], val);
+    }
+    return out;
+}
 
-        Tensor tensor = Tensor(data, numel, shape, dtype);
-        return tensor;
+template<typename T>
+void Tensor::element_wise_operation_in_place(const Tensor& t2, std::function<T(T, T)> op) {
+    if (this->dtype != t2.dtype) {
+        throw std::invalid_argument("Datatypes must match.");
     }
 
-    static Tensor fill(const std::vector<int>& shape, const DataType& dtype, double value) {
-        Tensor tensor = Tensor::empty(shape, dtype);
-        TensorValue cvalue = cast_value(value, dtype);
+    T* t1_data = this->get_data<T>();
+    T* t2_data = t2.get_data<T>();
+    for (int i=0; i < this->numel; i++) {
+        t1_data[i] = op(t1_data[i], t2_data[i]);
+    }
+}
 
-        switch (dtype) {
-            case DataType::UINT8: {
-                uint8* ptr_ui8 = tensor.get_data<uint8>();
-                uint8 val_ui8 = std::get<uint8>(cvalue);
-                for (int i = 0; i < tensor.numel; i++) {
-                    ptr_ui8[i] = val_ui8;
+template<typename T>
+void Tensor::element_wise_operation_in_place_scalar(const double value, std::function<T(T, T)> op) {
+    TensorValue cvalue = cast_value(value, this->dtype);
+    const T val = std::get<T>(cvalue);
+    T* t1_data = this->get_data<T>();
+    for (int i=0; i < this->numel; i++) {
+        t1_data[i] = op(t1_data[i], val);
+    }
+}
+
+Tensor Tensor::operator+(const Tensor& t2) const {
+    Tensor out = std::visit([this, &t2](auto& data_ptr) -> Tensor {
+        using T = std::decay_t<decltype(data_ptr.get()[0])>;
+        return this->element_wise_operation<T>(t2, std::plus<T>());
+    }, this->data);
+
+    return out;
+}
+
+Tensor Tensor::operator+(const double value) const {
+    Tensor out = std::visit([this, value](auto& data_ptr) -> Tensor {
+        using T = std::decay_t<decltype(data_ptr.get()[0])>;
+        return this->element_wise_operation_scalar<T>(value, std::plus<T>());   
+    }, this->data);
+    return out;
+}
+
+Tensor& Tensor::operator+=(const Tensor& t2) {
+    std::visit([this, &t2](auto& data_ptr) {
+        using T = std::decay_t<decltype(data_ptr.get()[0])>;
+        this->element_wise_operation_in_place<T>(t2, std::plus<T>());
+    }, this->data);
+
+    return *this;
+}
+
+Tensor& Tensor::operator+=(const double value) {
+    std::visit([this, value](auto& data_ptr) {
+        using T = std::decay_t<decltype(data_ptr.get()[0])>; 
+        this->element_wise_operation_in_place_scalar<T>(value, std::plus<T>());
+    }, this->data);
+
+    return *this;
+}
+
+Tensor Tensor::operator*(const Tensor& t2) const {
+    Tensor out = std::visit([this, &t2](auto& data_ptr) -> Tensor {
+        using T = std::decay_t<decltype(data_ptr.get()[0])>;
+        return this->element_wise_operation<T>(t2, std::multiplies<T>());
+    }, this->data);
+
+    return out;
+}
+
+Tensor Tensor::operator*(const double value) const {
+    Tensor out = std::visit([this, value](auto& data_ptr) -> Tensor {
+        using T = std::decay_t<decltype(data_ptr.get()[0])>;
+        return this->element_wise_operation_scalar<T>(value, std::multiplies<T>());   
+    }, this->data);
+    return out;
+}
+
+Tensor& Tensor::operator*=(const Tensor& t2) {
+    std::visit([this, &t2](auto& data_ptr) {
+        using T = std::decay_t<decltype(data_ptr.get()[0])>;
+        this->element_wise_operation_in_place<T>(t2, std::multiplies<T>());
+    }, this->data);
+
+    return *this;
+}
+
+Tensor& Tensor::operator*=(const double value) {
+    std::visit([this, value](auto& data_ptr) {
+        using T = std::decay_t<decltype(data_ptr.get()[0])>; 
+        this->element_wise_operation_in_place_scalar<T>(value, std::multiplies<T>());
+    }, this->data);
+
+    return *this;
+}
+
+Tensor Tensor::matmul(const Tensor& t2) const {
+    Tensor out = std::visit([this, &t2](auto& data_ptr) -> Tensor {
+        using T = std::decay_t<decltype(data_ptr.get()[0])>;
+        return Tensor::matmul_template<T>(*this, t2);
+    }, this->data);
+
+    return out;
+}
+
+Tensor Tensor::matmul(const Tensor& t1, const Tensor& t2) {
+    Tensor out = std::visit([&t1, &t2](auto& data_ptr) -> Tensor {
+        using T = std::decay_t<decltype(data_ptr.get()[0])>;
+        return Tensor::matmul_template<T>(t1, t2);
+    }, t1.data);
+
+    return out;
+}
+
+template<typename T>
+Tensor Tensor::matmul_template(const Tensor& t1, const Tensor& t2) {
+    if (t1.dtype != t2.dtype) {
+        throw std::invalid_argument("Datatypes must match.");
+    } 
+    if (t1.ndim < 2 || t2.ndim < 2) {
+        throw std::invalid_argument("Tensor dimensions must be greater than 1");
+    }
+    if (t1.shape[t1.ndim - 1] != t2.shape[t2.ndim - 2]) {
+        throw std::invalid_argument("Invalid Tensor dimensions");
+    }
+
+    int ndim = t1.ndim;
+    int out_t1_dim = t1.shape[ndim - 2];
+    int out_t2_dim = t2.shape[ndim - 1];
+    int last_t1_dim = t1.shape[ndim - 1];
+    int other_t2_dim = t2.shape[ndim - 2];
+    
+    std::vector<int> out_shape(ndim);
+    out_shape[ndim - 2] = out_t1_dim;
+    out_shape[ndim - 1] = out_t2_dim;
+    for (int i=0; i < ndim - 2; i++) {
+        out_shape[i] = t1.shape[i];
+    }
+    Tensor out = Tensor::zeros(out_shape, t1.dtype);
+
+    T* t1_data = t1.get_data<T>();
+    T* t2_data = t2.get_data<T>();
+    T* out_data = out.get_data<T>();
+
+    size_t batches = t1.numel / out_t1_dim / last_t1_dim;
+    for (int k=0; k < batches; k++) {
+        for (int row=0; row < out_t1_dim; row++) {
+            for (int j=0; j < last_t1_dim; j++) {
+                for (int i=0; i < out_t2_dim; i++) {
+                    int out_index = k*out_t1_dim*out_t2_dim + row*out_t2_dim + i;
+                    int t1_index = k*out_t1_dim*last_t1_dim + row*last_t1_dim + j;
+                    int t2_index = k*other_t2_dim*out_t2_dim + j*out_t2_dim + i;
+                    
+                    out_data[out_index] += t1_data[t1_index] * t2_data[t2_index];
                 }
-                break;
-            }
-            case DataType::INT32: {
-                int32* ptr_i32 = tensor.get_data<int32>();
-                int32 val_i32 = std::get<int32>(cvalue);
-                for (int i = 0; i < tensor.numel; i++) {
-                    ptr_i32[i] = val_i32;
-                }
-                break;
-            }
-            case DataType::FLOAT32: {
-                float32* ptr_f32 = tensor.get_data<float32>();
-                float32 val_f32 = std::get<float32>(cvalue);
-                for (int i = 0; i < tensor.numel; i++) {
-                    ptr_f32[i] = val_f32;
-                }
-                break;
-            }
-            default:
-                throw std::invalid_argument("Unsupported data type.");
+            }   
         }
-        return tensor;
+    } 
+    return out;
+}
+
+Tensor Tensor::operator[](int index) const {
+    if (index < 0 || index >= this->shape[0]) {
+        throw std::out_of_range("Index out of range");
     }
 
-    static Tensor ones(const std::vector<int>& shape, const DataType& dtype) {
-        return fill(shape, dtype, 1.0);
-    }
+    DataType out_dtype = this->dtype;
+    size_t out_numel = this->numel / this->shape[0];
+    
+    std::vector<int> out_shape(this->shape.begin() + 1, this->shape.end());
 
-    static Tensor zeros(const std::vector<int>& shape, const DataType& dtype) {
-        return fill(shape, dtype, 0.0);
-    }
+    size_t offset = index * out_numel;
 
-    template<typename T>
-    Tensor element_wise_operation(const Tensor& t2, std::function<T(T, T)> op) const {
-        if (this->dtype != t2.dtype) {
-            throw std::invalid_argument("Datatypes must match.");
-        }
+    TensorData out_data = std::visit([offset](auto& data_ptr) -> TensorData {
+        using T = std::decay_t<decltype(data_ptr.get()[0])>;
+        // Create a new shared_ptr that points to the correct offset
+        return std::shared_ptr<T[]>(data_ptr, data_ptr.get() + offset);
+    }, this->data);
 
-        Tensor out = Tensor::empty(this->shape, this->dtype);
-        T* t1_data = this->get_data<T>();
-        T* t2_data = t2.get_data<T>();
-        T* out_data = out.get_data<T>();
-        for (int i=0; i < this->numel; i++) {
-            out_data[i] = op(t1_data[i], t2_data[i]);
-        }
-        return out;
-    }
+    return Tensor(out_data, out_numel, out_shape, out_dtype);
+}
 
-    template<typename T>
-    Tensor element_wise_operation_scalar(const double value, std::function<T(T, T)> op) const {
-        Tensor out = Tensor::empty(this->shape, this->dtype);
-        
-        TensorValue cvalue = cast_value(value, this->dtype);
-        const T val = std::get<T>(cvalue);
+std::string Tensor::to_string() const {
+    size_t mem_size = numel * get_dtype_size(dtype);
+    std::string dtype_str = dtype_to_str(dtype);
 
-        T* t1_data = this->get_data<T>();
-        T* out_data = out.get_data<T>();
-        for (int i=0; i < this->numel; i++) {
-            out_data[i] = op(t1_data[i], val);
-        }
-        return out;
-    }
-
-    template<typename T>
-    void element_wise_operation_in_place(const Tensor& t2, std::function<T(T, T)> op) {
-        if (this->dtype != t2.dtype) {
-            throw std::invalid_argument("Datatypes must match.");
-        }
-
-        T* t1_data = this->get_data<T>();
-        T* t2_data = t2.get_data<T>();
-        for (int i=0; i < this->numel; i++) {
-            t1_data[i] = op(t1_data[i], t2_data[i]);
-        }
-    }
-
-    template<typename T>
-    void element_wise_operation_in_place_scalar(const double value, std::function<T(T, T)> op) {
-        TensorValue cvalue = cast_value(value, this->dtype);
-        const T val = std::get<T>(cvalue);
-        T* t1_data = this->get_data<T>();
-        for (int i=0; i < this->numel; i++) {
-            t1_data[i] = op(t1_data[i], val);
-        }
-    }
-
-    Tensor operator+(const Tensor& t2) const {
-        Tensor out = std::visit([this, &t2](auto& data_ptr) -> Tensor {
-            using T = std::decay_t<decltype(data_ptr.get()[0])>;
-            return this->element_wise_operation<T>(t2, std::plus<T>());
-        }, this->data);
-
-        return out;
-    }
-
-    Tensor operator+(const double value) const {
-        Tensor out = std::visit([this, value](auto& data_ptr) -> Tensor {
-            using T = std::decay_t<decltype(data_ptr.get()[0])>;
-            return this->element_wise_operation_scalar<T>(value, std::plus<T>());   
-        }, this->data);
-        return out;
-    }
-
-    Tensor& operator+=(const Tensor& t2) {
-        std::visit([this, &t2](auto& data_ptr) {
-            using T = std::decay_t<decltype(data_ptr.get()[0])>;
-            this->element_wise_operation_in_place<T>(t2, std::plus<T>());
-        }, this->data);
-
-        return *this;
-    }
-
-    Tensor& operator+=(const double value) {
-        std::visit([this, value](auto& data_ptr) {
-            using T = std::decay_t<decltype(data_ptr.get()[0])>; 
-            this->element_wise_operation_in_place_scalar<T>(value, std::plus<T>());
-        }, this->data);
-
-        return *this;
-    }
-
-    Tensor operator*(const Tensor& t2) const {
-        Tensor out = std::visit([this, &t2](auto& data_ptr) -> Tensor {
-            using T = std::decay_t<decltype(data_ptr.get()[0])>;
-            return this->element_wise_operation<T>(t2, std::multiplies<T>());
-        }, this->data);
-
-        return out;
-    }
-
-    Tensor operator*(const double value) const {
-        Tensor out = std::visit([this, value](auto& data_ptr) -> Tensor {
-            using T = std::decay_t<decltype(data_ptr.get()[0])>;
-            return this->element_wise_operation_scalar<T>(value, std::multiplies<T>());   
-        }, this->data);
-        return out;
-    }
-
-    Tensor& operator*=(const Tensor& t2) {
-        std::visit([this, &t2](auto& data_ptr) {
-            using T = std::decay_t<decltype(data_ptr.get()[0])>;
-            this->element_wise_operation_in_place<T>(t2, std::multiplies<T>());
-        }, this->data);
-
-        return *this;
-    }
-
-    Tensor& operator*=(const double value) {
-        std::visit([this, value](auto& data_ptr) {
-            using T = std::decay_t<decltype(data_ptr.get()[0])>; 
-            this->element_wise_operation_in_place_scalar<T>(value, std::multiplies<T>());
-        }, this->data);
-
-        return *this;
-    }
-
-    Tensor matmul(const Tensor& t2) const {
-        Tensor out = std::visit([this, &t2](auto& data_ptr) -> Tensor {
-            using T = std::decay_t<decltype(data_ptr.get()[0])>;
-            return Tensor::matmul<T>(*this, t2);
-        }, this->data);
-
-        return out;
-    }
-
-    static Tensor matmul(const Tensor& t1, const Tensor& t2) {
-        Tensor out = std::visit([&t1, &t2](auto& data_ptr) -> Tensor {
-            using T = std::decay_t<decltype(data_ptr.get()[0])>;
-            return Tensor::matmul<T>(t1, t2);
-        }, t1.data);
-
-        return out;
-    }
-
-    template<typename T>
-    static Tensor matmul(const Tensor& t1, const Tensor& t2) {
-        if (t1.dtype != t2.dtype) {
-            throw std::invalid_argument("Datatypes must match.");
-        } 
-        if (t1.ndim < 2 || t2.ndim < 2) {
-            throw std::invalid_argument("Tensor dimensions must be greater than 1");
-        }
-        if (t1.shape[t1.ndim - 1] != t2.shape[t2.ndim - 2]) {
-            throw std::invalid_argument("Invalid Tensor dimensions");
-        }
-
-        int ndim = t1.ndim;
-        int out_t1_dim = t1.shape[ndim - 2];
-        int out_t2_dim = t2.shape[ndim - 1];
-        int last_t1_dim = t1.shape[ndim - 1];
-        int other_t2_dim = t2.shape[ndim - 2];
-        
-        std::vector<int> out_shape(ndim);
-        out_shape[ndim - 2] = out_t1_dim;
-        out_shape[ndim - 1] = out_t2_dim;
-        for (int i=0; i < ndim - 2; i++) {
-            out_shape[i] = t1.shape[i];
-        }
-        Tensor out = Tensor::zeros(out_shape, t1.dtype);
-
-        T* t1_data = t1.get_data<T>();
-        T* t2_data = t2.get_data<T>();
-        T* out_data = out.get_data<T>();
-
-        int batches = t1.numel / out_t1_dim / last_t1_dim;
-        for (int k=0; k < batches; k++) {
-            for (int row=0; row < out_t1_dim; row++) {
-                for (int j=0; j < last_t1_dim; j++) {
-                    for (int i=0; i < out_t2_dim; i++) {
-                        int out_index = k*out_t1_dim*out_t2_dim + row*out_t2_dim + i;
-                        int t1_index = k*out_t1_dim*last_t1_dim + row*last_t1_dim + j;
-                        int t2_index = k*other_t2_dim*out_t2_dim + j*out_t2_dim + i;
-                        
-                        out_data[out_index] += t1_data[t1_index] * t2_data[t2_index];
-                    }
-                }   
-            }
-        } 
-        return out;
-    }
-
-    Tensor operator[](int index) const {
-        if (index < 0 || index >= this->shape[0]) {
-            throw std::out_of_range("Index out of range");
-        }
-
-        DataType out_dtype = this->dtype;
-        size_t out_numel = this->numel / this->shape[0];
-        
-        std::vector<int> out_shape(this->shape.begin() + 1, this->shape.end());
-
-        size_t offset = index * out_numel;
-
-        TensorData out_data = std::visit([offset](auto& data_ptr) -> TensorData {
-            using T = std::decay_t<decltype(data_ptr.get()[0])>;
-            // Create a new shared_ptr that points to the correct offset
-            return std::shared_ptr<T[]>(data_ptr, data_ptr.get() + offset);
-        }, this->data);
-
-        return Tensor(out_data, out_numel, out_shape, out_dtype);
-    }
-
-    std::string to_string() const {
-        size_t mem_size = numel * get_dtype_size(dtype);
-        std::string dtype_str = dtype_to_str(dtype);
-
-        std::string data_str = std::visit([this](auto& data_ptr) -> std::string {
-            using T = std::decay_t<decltype(data_ptr.get()[0])>; // Deduce the type of the data
-            return tensor_to_string<T>(*this, 7);                // Call templated function
-        }, data);
-        std::string shape_str = array_to_string(shape.data(), shape.size(), 0);
-        std::string strides_str = array_to_string(strides.data(), strides.size(), 0);
-        
-        std::ostringstream oss;
-        oss << "Tensor(" << data_str << ",\n"
-            << "       numel=" << numel << ", shape=" << shape_str << ", ndim=" << ndim
-            << ", strides=" << strides_str << ", dtype=" << dtype_str << ", msize=" << mem_size << ")";
-        return oss.str();
-    }
-
-};
+    std::string data_str = std::visit([this](auto& data_ptr) -> std::string {
+        using T = std::decay_t<decltype(data_ptr.get()[0])>; // Deduce the type of the data
+        return tensor_to_string<T>(*this, 7);                // Call templated function
+    }, data);
+    std::string shape_str = array_to_string(shape.data(), shape.size(), 0);
+    std::string strides_str = array_to_string(strides.data(), strides.size(), 0);
+    
+    std::ostringstream oss;
+    oss << "Tensor(" << data_str << ",\n"
+        << "       numel=" << numel << ", shape=" << shape_str << ", ndim=" << ndim
+        << ", strides=" << strides_str << ", dtype=" << dtype_str << ", msize=" << mem_size << ")";
+    return oss.str();
+}
 
 template<typename T>
 std::string tensor_to_string(const Tensor& tensor, int padding) {
     size_t numel = tensor.numel;
     int ndim = tensor.ndim;
     int last_dim_size = tensor.shape[ndim - 1];
-    int narrays = numel / last_dim_size;
+    size_t narrays = numel / last_dim_size;
 
     std::string buffer;
 
@@ -487,7 +440,7 @@ std::string array_to_string(const T* array, size_t length, int padding) {
     std::ostringstream oss;
     oss << "[";
 
-    for (size_t i = 0; i < length; ++i) {
+    for (int i = 0; i < length; ++i) {
         // Check if T is an integral type (e.g., int, uint8_t)
         if constexpr (std::is_integral_v<T>) {
             oss << static_cast<int>(array[i]);
@@ -514,7 +467,7 @@ std::string array_to_string(const T* array, size_t length, int padding) {
     return oss.str();
 }
 
-
+// Main function
 int main() {
     // Creating and printing t1
     std::cout << "\n=== Creating and printing t1 ===\n\n";

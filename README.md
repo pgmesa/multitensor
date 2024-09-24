@@ -17,7 +17,7 @@ The project explores the technical aspects of developing high-performance numeri
 - Python >= 3.9
 - C compiler (gcc recommended)
 - C++ compiler (g++ recommended)
-- Make
+- CMake
 
 ## Project Structure
 
@@ -82,11 +82,28 @@ make tensor_cpp
 
 #### C++ Library (using pybind11)
 
-The C++ tensor implementation is complete, but the Python bindings using pybind11 are still in development. This will allow for a comparison between Cython and pybind11 approaches for creating Python extensions.
+1. Navigate to the `C++` directory:
+   ```
+   cd C++
+   ```
+
+2. Build pybind11 bindings (Windows version):
+   ```
+   make build
+   ```
+   This command generates Visual Studio solution files for the pybind11 project using CMake, builds the project with MSBuild, and then copies the resulting .pyd file from the build directory to the current directory for use in Python.
+
+3. Run the Python tests:
+   ```
+   make run
+   ```
+   or
+   ```
+   python test.py
+   ```
 
 ## Future Developments
 
-- Complete Python bindings for C++ implementation using pybind11
 - Implement more tensor operations (convolutions, broadcasting, slicing)
 - Add support for GPU acceleration
 - Expand test suite and benchmarking tools
