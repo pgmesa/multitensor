@@ -1,14 +1,18 @@
 # MultiTensor
 
-**MultiTensor** is a project that implements multidimensional tensor operations in C and C++, with Python bindings. It offers a custom implementation of N-dimensional strided tensors and various tensor operations, similar to those in libraries like NumPy and PyTorch, but built from scratch.
+**MultiTensor** is a project that implements multidimensional tensor operations in C and C++, with Python bindings. It provides a custom implementation of N-dimensional strided tensors and various tensor operations similar to those in libraries like NumPy and PyTorch. However, unlike production-ready libraries, **MultiTensor** is built from scratch to offer a deeper understanding of how low-level tensor operations can be implemented and exposed to high-level languages like Python.
 
-The project explores the technical aspects of developing high-performance numerical computing libraries and the methods for exposing low-level implementations to high-level languages like Python. It serves as a guide for understanding the inner workings of low-level tensor operations, memory management, and the process of creating language interfaces between C/C++ and Python.
+## Purpose and Limitations
+
+This project is **not designed to be a high-performance library** optimized with advanced techniques such as SIMD instructions, multi-threading, or leveraging optimized low-level libraries like OpenBLAS or MKL. While such optimizations are crucial for performance in production-level numerical computing libraries, **MultiTensor** is focused on exploring the fundamental aspects of building a tensor library from the ground up.
+
+The primary goal of **MultiTensor** is to serve as a learning tool, offering insights into the process of implementing core tensor functionalities, including memory management, N-dimensional strided tensors, and basic element-wise operations. It also demonstrates how to expose these low-level implementations to Python through custom bindings, making it a valuable reference for anyone interested in the inner workings of tensor computation libraries. This project emphasizes functionality and correctness over performance, making it ideal for educational purposes, rather than high-performance computing.
 
 ## Project Overview
 
 - Custom implementation of N-dimensional strided tensors in C and C++
 - Support for multiple data types (uint8, int32, float32)
-- Tensor operations (e.g., element-wise operations, N-dimensional matrix multiplication, indexing)
+- Tensor operations (e.g., element-wise operations, N-dimensional matrix multiplication, broadcasting)
 - Python bindings using Cython (for C) and pybind11 (for C++)
 - Performance comparisons with NumPy NDArrays
 
@@ -23,7 +27,7 @@ The project explores the technical aspects of developing high-performance numeri
 
 1. Clone the repository:
    ```
-   git clone https://github.com/yourusername/multitensor.git
+   git clone https://github.com/pgmesa/multitensor.git
    cd multitensor
    ```
 
@@ -101,10 +105,3 @@ make tensor_cpp
    ```
    python test.py
    ```
-
-## Future Developments
-
-- Implement more tensor operations (convolutions, broadcasting, slicing)
-- Add support for GPU acceleration
-- Expand test suite and benchmarking tools
-- Extend data type support to include more types (e.g., float16, complex)
