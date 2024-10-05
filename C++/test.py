@@ -1,7 +1,8 @@
 
 import time
 import numpy as np
-from cpptensor import Tensor, DataType
+import cpptensor as Tensor
+from cpptensor import DataType
 
 # NOTE: 
 # With integer types, the C++ matmul implementation and NumPy matmul perform 
@@ -14,11 +15,10 @@ def basic_example():
     shape1 = [2, 5, 8] 
     shape2 = [2, 8, 5] 
 
-    t1 = Tensor.ones(shape1, DATATYPE)
-    t1_0 = t1[0]
-    t1_0 *= 2
-    t1_0 += 1.5
-    t2 = Tensor.fill(shape2, DATATYPE, 4.0)
+    t1 = Tensor.ones(shape1, DATATYPE) * 2
+    t1 *= 1.5
+    t1 += 1.5
+    t2 = Tensor.full(shape2, DATATYPE, 4.0)
 
     t3 = t1 @ t2
 
@@ -31,8 +31,8 @@ def compare_small_matrices(num_runs=10000):
     shape1 = [1, 2, 5, 8]
     shape2 = [1, 2, 8, 5]
 
-    t1 = Tensor.fill(shape1, DATATYPE, 2.0)
-    t2 = Tensor.fill(shape2, DATATYPE, 4.0)
+    t1 = Tensor.full(shape1, DATATYPE, 2.0)
+    t2 = Tensor.full(shape2, DATATYPE, 4.0)
 
     start_time = time.time()
     for _ in range(num_runs):
@@ -57,15 +57,15 @@ def compare_small_matrices(num_runs=10000):
 
 # Performance comparison for larger matrices with fewer runs
 def compare_large_matrices(num_runs=10):
-    shape1 = [10, 20, 50, 80]
-    shape2 = [10, 20, 80, 50]
+    shape1 = [2, 10, 50, 80]
+    shape2 = [2, 10, 80, 50]
 
-    t1 = Tensor.fill(shape1, DATATYPE, 2.0)
-    t2 = Tensor.fill(shape2, DATATYPE, 4.0)
+    t1 = Tensor.full(shape1, DATATYPE, 2.0)
+    t2 = Tensor.full(shape2, DATATYPE, 4.0)
 
     start_time = time.time()
     for _ in range(num_runs):
-        t3 = Tensor.matmul(t1, t2)
+        t3 = t1 @ t2
     end_time = time.time()
     cpp_time = end_time - start_time
 

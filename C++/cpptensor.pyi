@@ -1,255 +1,283 @@
-
-from typing import List, Union
-
+"""
+pybind11 plugin for Tensor class
+"""
+from __future__ import annotations
+import typing
+__all__ = ['DataType', 'TensorFloat32', 'TensorInt32', 'TensorUInt8', 'full', 'ones', 'zeros']
 class DataType:
     """
-    Enum representing the supported data types for a Tensor.
+    Members:
     
-    Values:
-        UINT8: Unsigned 8-bit integer data type.
-        INT32: Signed 32-bit integer data type.
-        FLOAT32: 32-bit floating-point data type.
-    """
-
-    UINT8: 'DataType'
-    """Unsigned 8-bit integer."""
-
-    INT32: 'DataType'
-    """Signed 32-bit integer."""
-
-    FLOAT32: 'DataType'
-    """32-bit floating-point."""
-
-class Tensor:
-    """
-    Tensor class representing a multi-dimensional array with support for various data types.
+      UINT8
     
-    Attributes:
-        numel: int
-            The total number of elements in the tensor.
-        
-        shape: List[int]
-            The shape of the tensor as a list of integers, where each integer represents the size of a dimension.
-        
-        ndim: int
-            The number of dimensions of the tensor (also known as the rank).
-        
-        dtype: DataType
-            The data type of the elements in the tensor, such as DataType.UINT8, DataType.INT32, or DataType.FLOAT32.
-        
-        strides: List[int]
-            The memory strides for each dimension of the tensor, determining how far apart consecutive elements in memory are.
+      INT32
+    
+      FLOAT32
     """
-
-    numel: int
-    """The total number of elements in the tensor."""
-
-    shape: List[int]
-    """The shape of the tensor as a list of integers, where each integer represents the size of a dimension."""
-
-    ndim: int
-    """The number of dimensions (rank) of the tensor."""
-
-    dtype: DataType
-    """The data type of the elements in the tensor."""
-
-    strides: List[int]
-    """The memory strides for each dimension of the tensor."""
-
-    def __init__(self) -> None:
-        """
-        Initialize an empty Tensor.
-        
-        A default constructor that initializes a tensor with no specific shape or data.
-        """
+    FLOAT32: typing.ClassVar[DataType]  # value = <DataType.FLOAT32: 2>
+    INT32: typing.ClassVar[DataType]  # value = <DataType.INT32: 1>
+    UINT8: typing.ClassVar[DataType]  # value = <DataType.UINT8: 0>
+    __members__: typing.ClassVar[dict[str, DataType]]  # value = {'UINT8': <DataType.UINT8: 0>, 'INT32': <DataType.INT32: 1>, 'FLOAT32': <DataType.FLOAT32: 2>}
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs):
         ...
-
+    def __eq__(self, other: typing.Any) -> bool:
+        ...
+    def __getstate__(self) -> int:
+        ...
+    def __hash__(self) -> int:
+        ...
+    def __index__(self) -> int:
+        ...
+    def __init__(self, value: int) -> None:
+        ...
+    def __int__(self) -> int:
+        ...
+    def __ne__(self, other: typing.Any) -> bool:
+        ...
     def __repr__(self) -> str:
-        """
-        Return the string representation of the Tensor.
-        
-        This function provides a human-readable summary of the tensor, including its shape, data type, and number of elements.
-        
-        Returns:
-            str: The string representation of the tensor.
-        """
         ...
-
-    def __getitem__(self, index: Union[int, slice]) -> 'Tensor':
-        """
-        Get an element or a slice from the Tensor.
-        
-        Allows indexing or slicing of the tensor to access specific elements or sub-tensors.
-        
-        Args:
-            index: int or slice
-                The index or slice to retrieve.
-        
-        Returns:
-            Tensor: A new tensor representing the element or slice.
-        """
+    def __setstate__(self, state: int) -> None:
         ...
-
-    def __add__(self, other: Union['Tensor', float]) -> 'Tensor':
-        """
-        Add another Tensor or a scalar to this Tensor.
-        
-        Supports element-wise addition between tensors or broadcasting addition of a scalar to all elements.
-        
-        Args:
-            other: Tensor or float
-                The tensor or scalar to add.
-        
-        Returns:
-            Tensor: A new tensor representing the result of the addition.
-        """
+    def __str__(self) -> str:
         ...
-
-    def __iadd__(self, other: Union['Tensor', float]) -> 'Tensor':
-        """
-        In-place addition of another Tensor or a scalar to this Tensor.
-        
-        Modifies the current tensor by adding the values from another tensor or a scalar.
-        
-        Args:
-            other: Tensor or float
-                The tensor or scalar to add.
-        
-        Returns:
-            Tensor: The modified tensor after addition.
-        """
+    @property
+    def name(self) -> str:
         ...
-
-    def __mul__(self, other: Union['Tensor', float]) -> 'Tensor':
-        """
-        Multiply this Tensor by another Tensor or a scalar.
-        
-        Supports element-wise multiplication between tensors or broadcasting multiplication of a scalar.
-        
-        Args:
-            other: Tensor or float
-                The tensor or scalar to multiply by.
-        
-        Returns:
-            Tensor: A new tensor representing the result of the multiplication.
-        """
+    @property
+    def value(self) -> int:
         ...
-
-    def __imul__(self, other: Union['Tensor', float]) -> 'Tensor':
-        """
-        In-place multiplication of this Tensor by another Tensor or a scalar.
-        
-        Modifies the current tensor by multiplying the values by another tensor or scalar.
-        
-        Args:
-            other: Tensor or float
-                The tensor or scalar to multiply by.
-        
-        Returns:
-            Tensor: The modified tensor after multiplication.
-        """
-        ...
-
-    def __matmul__(self, other: 'Tensor') -> 'Tensor':
-        """
-        Matrix multiplication of this Tensor with another Tensor.
-        
-        Performs matrix multiplication (dot product) between two tensors. This corresponds to the `@` operator in Python.
-        
-        Args:
-            other: Tensor
-                The tensor to perform matrix multiplication with.
-        
-        Returns:
-            Tensor: A new tensor representing the result of the matrix multiplication.
-        """
-        ...
-
+class TensorFloat32:
     @staticmethod
-    def matmul(a: 'Tensor', b: 'Tensor') -> 'Tensor':
-        """
-        Static method for matrix multiplication between two Tensors.
-        
-        Performs matrix multiplication (dot product) between two tensors.
-        
-        Args:
-            a: Tensor
-                The left-hand side tensor.
-            
-            b: Tensor
-                The right-hand side tensor.
-        
-        Returns:
-            Tensor: A new tensor representing the result of the matrix multiplication.
-        """
+    def _pybind11_conduit_v1_(*args, **kwargs):
         ...
-
     @staticmethod
-    def empty(shape: List[int]) -> 'Tensor':
-        """
-        Create an uninitialized Tensor with a given shape.
-        
-        This method does not initialize the tensor with any specific values, which is useful for performance in some cases.
-        
-        Args:
-            shape: List[int]
-                The shape of the new tensor.
-        
-        Returns:
-            Tensor: A new uninitialized tensor with the specified shape.
-        """
+    def empty(arg0: list[int]) -> TensorFloat32:
         ...
-
     @staticmethod
-    def fill(shape: List[int], dtype: DataType, value: float) -> 'Tensor':
-        """
-        Create a Tensor filled with a constant value.
-        
-        Args:
-            shape: List[int]
-                The shape of the new tensor.
-            
-            dtype: DataType
-                The data type of the tensor elements.
-            
-            value: float
-                The constant value to fill the tensor with.
-        
-        Returns:
-            Tensor: A new tensor filled with the specified value.
-        """
+    def full(arg0: list[int], arg1: float) -> TensorFloat32:
         ...
-
     @staticmethod
-    def ones(shape: List[int], dtype: DataType) -> 'Tensor':
-        """
-        Create a Tensor filled with ones.
-        
-        Args:
-            shape: List[int]
-                The shape of the new tensor.
-            
-            dtype: DataType
-                The data type of the tensor elements.
-        
-        Returns:
-            Tensor: A new tensor filled with ones.
-        """
+    def matmul(arg0: TensorFloat32, arg1: TensorFloat32) -> TensorFloat32:
         ...
-
     @staticmethod
-    def zeros(shape: List[int], dtype: DataType) -> 'Tensor':
-        """
-        Create a Tensor filled with zeros.
-        
-        Args:
-            shape: List[int]
-                The shape of the new tensor.
-            
-            dtype: DataType
-                The data type of the tensor elements.
-        
-        Returns:
-            Tensor: A new tensor filled with zeros.
-        """
+    def ones(arg0: list[int]) -> TensorFloat32:
         ...
+    @staticmethod
+    def zeros(arg0: list[int]) -> TensorFloat32:
+        ...
+    @typing.overload
+    def __add__(self, arg0: TensorFloat32) -> TensorFloat32:
+        ...
+    @typing.overload
+    def __add__(self, arg0: float) -> TensorFloat32:
+        ...
+    @typing.overload
+    def __iadd__(self, arg0: TensorFloat32) -> TensorFloat32:
+        ...
+    @typing.overload
+    def __iadd__(self, arg0: float) -> TensorFloat32:
+        ...
+    @typing.overload
+    def __imul__(self, arg0: TensorFloat32) -> TensorFloat32:
+        ...
+    @typing.overload
+    def __imul__(self, arg0: float) -> TensorFloat32:
+        ...
+    def __init__(self) -> None:
+        ...
+    def __matmul__(self, arg0: TensorFloat32) -> TensorFloat32:
+        ...
+    @typing.overload
+    def __mul__(self, arg0: TensorFloat32) -> TensorFloat32:
+        ...
+    @typing.overload
+    def __mul__(self, arg0: float) -> TensorFloat32:
+        ...
+    def __repr__(self) -> str:
+        ...
+    def broadcast_to(self, arg0: list[int]) -> TensorFloat32:
+        ...
+    def expand(self, arg0: list[int]) -> TensorFloat32:
+        ...
+    def squeeze(self, arg0: list[int]) -> TensorFloat32:
+        ...
+    def unsqueeze(self, arg0: list[int]) -> TensorFloat32:
+        ...
+    def view(self, arg0: list[int]) -> TensorFloat32:
+        ...
+    @property
+    def dtype(self) -> DataType:
+        ...
+    @property
+    def ndim(self) -> int:
+        ...
+    @property
+    def numel(self) -> int:
+        ...
+    @property
+    def shape(self) -> list[int]:
+        ...
+    @property
+    def strides(self) -> list[int]:
+        ...
+class TensorInt32:
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs):
+        ...
+    @staticmethod
+    def empty(arg0: list[int]) -> TensorInt32:
+        ...
+    @staticmethod
+    def full(arg0: list[int], arg1: float) -> TensorInt32:
+        ...
+    @staticmethod
+    def matmul(arg0: TensorInt32, arg1: TensorInt32) -> TensorInt32:
+        ...
+    @staticmethod
+    def ones(arg0: list[int]) -> TensorInt32:
+        ...
+    @staticmethod
+    def zeros(arg0: list[int]) -> TensorInt32:
+        ...
+    @typing.overload
+    def __add__(self, arg0: TensorInt32) -> TensorInt32:
+        ...
+    @typing.overload
+    def __add__(self, arg0: float) -> TensorInt32:
+        ...
+    @typing.overload
+    def __iadd__(self, arg0: TensorInt32) -> TensorInt32:
+        ...
+    @typing.overload
+    def __iadd__(self, arg0: float) -> TensorInt32:
+        ...
+    @typing.overload
+    def __imul__(self, arg0: TensorInt32) -> TensorInt32:
+        ...
+    @typing.overload
+    def __imul__(self, arg0: float) -> TensorInt32:
+        ...
+    def __init__(self) -> None:
+        ...
+    def __matmul__(self, arg0: TensorInt32) -> TensorInt32:
+        ...
+    @typing.overload
+    def __mul__(self, arg0: TensorInt32) -> TensorInt32:
+        ...
+    @typing.overload
+    def __mul__(self, arg0: float) -> TensorInt32:
+        ...
+    def __repr__(self) -> str:
+        ...
+    def broadcast_to(self, arg0: list[int]) -> TensorInt32:
+        ...
+    def expand(self, arg0: list[int]) -> TensorInt32:
+        ...
+    def squeeze(self, arg0: list[int]) -> TensorInt32:
+        ...
+    def unsqueeze(self, arg0: list[int]) -> TensorInt32:
+        ...
+    def view(self, arg0: list[int]) -> TensorInt32:
+        ...
+    @property
+    def dtype(self) -> DataType:
+        ...
+    @property
+    def ndim(self) -> int:
+        ...
+    @property
+    def numel(self) -> int:
+        ...
+    @property
+    def shape(self) -> list[int]:
+        ...
+    @property
+    def strides(self) -> list[int]:
+        ...
+class TensorUInt8:
+    @staticmethod
+    def _pybind11_conduit_v1_(*args, **kwargs):
+        ...
+    @staticmethod
+    def empty(arg0: list[int]) -> TensorUInt8:
+        ...
+    @staticmethod
+    def full(arg0: list[int], arg1: float) -> TensorUInt8:
+        ...
+    @staticmethod
+    def matmul(arg0: TensorUInt8, arg1: TensorUInt8) -> TensorUInt8:
+        ...
+    @staticmethod
+    def ones(arg0: list[int]) -> TensorUInt8:
+        ...
+    @staticmethod
+    def zeros(arg0: list[int]) -> TensorUInt8:
+        ...
+    @typing.overload
+    def __add__(self, arg0: TensorUInt8) -> TensorUInt8:
+        ...
+    @typing.overload
+    def __add__(self, arg0: float) -> TensorUInt8:
+        ...
+    @typing.overload
+    def __iadd__(self, arg0: TensorUInt8) -> TensorUInt8:
+        ...
+    @typing.overload
+    def __iadd__(self, arg0: float) -> TensorUInt8:
+        ...
+    @typing.overload
+    def __imul__(self, arg0: TensorUInt8) -> TensorUInt8:
+        ...
+    @typing.overload
+    def __imul__(self, arg0: float) -> TensorUInt8:
+        ...
+    def __init__(self) -> None:
+        ...
+    def __matmul__(self, arg0: TensorUInt8) -> TensorUInt8:
+        ...
+    @typing.overload
+    def __mul__(self, arg0: TensorUInt8) -> TensorUInt8:
+        ...
+    @typing.overload
+    def __mul__(self, arg0: float) -> TensorUInt8:
+        ...
+    def __repr__(self) -> str:
+        ...
+    def broadcast_to(self, arg0: list[int]) -> TensorUInt8:
+        ...
+    def expand(self, arg0: list[int]) -> TensorUInt8:
+        ...
+    def squeeze(self, arg0: list[int]) -> TensorUInt8:
+        ...
+    def unsqueeze(self, arg0: list[int]) -> TensorUInt8:
+        ...
+    def view(self, arg0: list[int]) -> TensorUInt8:
+        ...
+    @property
+    def dtype(self) -> DataType:
+        ...
+    @property
+    def ndim(self) -> int:
+        ...
+    @property
+    def numel(self) -> int:
+        ...
+    @property
+    def shape(self) -> list[int]:
+        ...
+    @property
+    def strides(self) -> list[int]:
+        ...
+def full(shape: list[int], value: DataType, dtype: float) -> typing.Any:
+    """
+    Create a Tensor filled with a value
+    """
+def ones(shape: list[int], dtype: DataType) -> typing.Any:
+    """
+    Create a Tensor of ones
+    """
+def zeros(shape: list[int], dtype: DataType) -> typing.Any:
+    """
+    Create a Tensor of zeros
+    """

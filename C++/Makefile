@@ -1,22 +1,27 @@
 # Variables
 TARGET_DIR = .
 BUILD_DIR = $(TARGET_DIR)\build
-SOLUTION_NAME = tensor_cpp_project.sln
+PROJECT_NAME = cpptensor_project.sln
 CONFIGURATION = Release
 PYD_OUTPUT_DIR = $(BUILD_DIR)\$(CONFIGURATION)
 PYD_EXTENSION = *.pyd
+
+CPP_COMPILER=g++
 
 all: build run
 
 build:
     # Generate Visual Studio solution files with cmake
-	cmake -S . -B $(BUILD_DIR) -G "Visual Studio 17 2022" -A x64
+	cmake -S . -B $(BUILD_DIR) -G "Visual Studio 17 2022" -A x64 
 
     # Build the project using msbuild
-	msbuild $(BUILD_DIR)\$(SOLUTION_NAME) /p:Configuration=$(CONFIGURATION)
+	msbuild $(BUILD_DIR)\$(PROJECT_NAME) /p:Configuration=$(CONFIGURATION)
 
     # Copy the generated .pyd file from the build directory to the current directory
 	cmd /C "copy $(PYD_OUTPUT_DIR)\$(PYD_EXTENSION) ."
+
+    # Generate .pyi file
+	pybind11-stubgen cpptensor --output .
 
 run:
 	python $(TARGET_DIR)\test.py
